@@ -22,7 +22,7 @@ pub enum OperationResp {
     Chmod(RpcResult<()>),
     Unlink(RpcResult<()>),
     Rename(RpcResult<()>),
-    JustErrors(RpcResult<()>)
+    JustErrors(RpcResult<()>),
 }
 
 #[derive(Encode, Decode)]
@@ -32,6 +32,7 @@ pub struct Request {
     pub operation: OperationReq,
 }
 
+/// Valid seq start at 1, if seq is 0 that means an error occured during decoding request
 #[derive(Encode, Decode)]
 pub struct Response {
     pub seq: u64,
@@ -54,8 +55,10 @@ pub enum RpcError {
     Rename,
     NoInputs,
     // Interface errors
-    Timeout,
     UnauthorizedAccess,
+    InvalidResponse,
+    DecodeError,
+    UnknownError,
 }
 
 #[derive(Encode, Decode)]

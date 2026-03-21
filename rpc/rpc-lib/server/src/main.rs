@@ -15,18 +15,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let (len, addr) = socket.recv_from(&mut buf).expect("Didn't receive any data");
-        let req: Request = bincode::decode_from_slice(&buf[..len], config)?.0;
-
-        let response = if !authorize(req.auth_token) {
-            println!("ERROR: Unauthorized access!!!!");
-            OperationResp::JustErrors(Err(RpcError::UnauthorizedAccess))
-        } else {
-            req.operation.exec(&mut file, &mut mode)
-        };
+        let mut seq: u64 = 0;
+        let operation_result: OperationResp =
+            match bincode::decode_from_slice::<Request, _>(&buf[..len], config) {
+                Ok((req, _)) => {
+                    seq = req.seq;
+                    if !authorize(req.auth_token) {
+                        println!("ERROR: Unauthorized access!!!!");
+                        OperationResp::JustErrors(Err(RpcError::UnauthorizedAccess))
+                    } else {
+                        req.operation.exec(&mut file, &mut mode)
+                    }
+                }
+                Err(_) => OperationResp::JustErrors(Err(RpcError::DecodeError)),
+            };
 
         let resp = Response {
-            seq: req.seq,
-            operation: response,
+            seq: seq,
+            operation: operation_result,
         };
 
         let data = bincode::encode_to_vec(&resp, config).unwrap();
