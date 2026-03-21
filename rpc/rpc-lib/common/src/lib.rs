@@ -2,7 +2,7 @@ use bincode::{Decode, Encode};
 
 #[derive(Encode, Decode)]
 pub enum OperationReq {
-    Open(String, char),
+    Open(String, String),
     Read(usize),
     Write(Vec<u8>, usize),
     Lseek(SeekFrom),
@@ -11,7 +11,7 @@ pub enum OperationReq {
     Rename(String, String),
 }
 
-type RpcResult<T> = Result<T, RpcError>;
+pub type RpcResult<T> = Result<T, RpcError>;
 
 #[derive(Encode, Decode)]
 pub enum OperationResp {
@@ -22,11 +22,12 @@ pub enum OperationResp {
     Chmod(RpcResult<()>),
     Unlink(RpcResult<()>),
     Rename(RpcResult<()>),
+    JustErrors(RpcResult<()>)
 }
 
 #[derive(Encode, Decode)]
 pub struct Request {
-    pub token: u64,
+    pub auth_token: u64,
     pub seq: u64,
     pub operation: OperationReq,
 }
@@ -39,6 +40,7 @@ pub struct Response {
 
 #[derive(Encode, Decode, Debug)]
 pub enum RpcError {
+    // FunctionErrors
     InvalidMode,
     Open,
     NoFile,
@@ -51,6 +53,9 @@ pub enum RpcError {
     Unlink,
     Rename,
     NoInputs,
+    // Interface errors
+    Timeout,
+    UnauthorizedAccess,
 }
 
 #[derive(Encode, Decode)]

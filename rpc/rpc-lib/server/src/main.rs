@@ -1,10 +1,9 @@
 use std::{fs::File, net::UdpSocket};
 
 use bincode::config;
-use common::{OperationResp, Request, Response};
+use common::{OperationResp, Request, Response, RpcError};
 
 mod impls;
-use impls::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = UdpSocket::bind("0.0.0.0:4444").unwrap();
@@ -16,11 +15,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let (len, addr) = socket.recv_from(&mut buf).expect("Didn't receive any data");
-        let mut req: Request = bincode::decode_from_slice(&buf[..len], config)?.0;
+        let req: Request = bincode::decode_from_slice(&buf[..len], config)?.0;
 
-        println!("Request seq: {}", req.seq);
-
-        let response = req.operation.exec(&mut file, &mut mode);
+        let response = if !authorize(req.auth_token) {
+            println!("ERROR: Unauthorized access!!!!");
+            OperationResp::JustErrors(Err(RpcError::UnauthorizedAccess))
+        } else {
+            req.operation.exec(&mut file, &mut mode)
+        };
 
         let resp = Response {
             seq: req.seq,
@@ -36,8 +38,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 enum Mode {
     Read,
     Write,
+    ReadAndWrite,
 }
 
 trait Exec {
     fn exec(&self, file: &mut Option<File>, mode: &mut Option<Mode>) -> OperationResp;
+}
+
+fn authorize(_auth_token: u64) -> bool {
+    // TODO: todo!("Some logic to authorize client");
+    true
 }
