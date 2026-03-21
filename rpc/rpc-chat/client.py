@@ -22,7 +22,7 @@ def receive_messages(stub):
 
 def run():
     # Połącz z serwerem gRPC
-    channel = grpc.insecure_channel("localhost:50051")
+    channel = grpc.insecure_channel("malinka.tailb2454f.ts.net:50051")
     stub = chat_pb2_grpc.ChatServerStub(channel)
 
     name = input("Podaj swój nick: ")
@@ -39,6 +39,10 @@ def run():
                 break
             if msg.strip() == "":
                 continue
+
+            # Clear the previous input line
+            sys.stdout.write("\033[F")  # move cursor up
+            sys.stdout.write("\033[K")  # clear line
 
             # Stwórz obiekt Note i wyślij na serwer
             note = chat_pb2.Note(name=name, message=msg)
