@@ -3,6 +3,7 @@ use common::{OperationReq, OperationResp, Request, Response, RpcError, RpcResult
 use std::net::UdpSocket;
 use std::time::Duration;
 
+#[derive(Debug)]
 pub enum ClientError {
     Timeout,
     EncodeError,
