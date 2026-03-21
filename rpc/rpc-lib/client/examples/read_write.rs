@@ -2,7 +2,7 @@ use client::RpcServer;
 use common::SeekFrom;
 
 fn main() {
-    let mut client = RpcServer::new("localhost:4444", 5000).unwrap();
+    let mut client = RpcServer::new("malinka.tailb2454f.ts.net:4444", 5000).unwrap();
 
     // Open a file
     match client.open("test.txt".to_string(), "w+".to_string()) {

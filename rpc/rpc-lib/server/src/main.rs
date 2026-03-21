@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok((req, _)) => {
                     seq = req.seq;
                     if !authorize(req.auth_token) {
-                        println!("ERROR: Unauthorized access!!!!");
+                        eprintln!("ERROR: Unauthorized access!!!!");
                         OperationResp::JustErrors(Err(RpcError::UnauthorizedAccess))
                     } else {
                         req.operation.exec(&mut file, &mut mode)
