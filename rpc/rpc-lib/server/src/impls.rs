@@ -33,7 +33,7 @@ fn open(
     file: &mut Option<File>,
     mode: &mut Option<Mode>,
 ) -> RpcResult<()> {
-    println!("Opening file {} in mode", pathname, mode)
+    println!("Opening file {} in mode {}", pathname, mode_str);
     match mode_str {
         "r" => {
             *mode = Some(Mode::Read);
@@ -165,7 +165,7 @@ fn lseek(seek_from: &SeekFrom, file: &mut Option<File>) -> RpcResult<u64> {
 }
 
 fn chmod(pathname: &str, r#mod: u32) -> RpcResult<()> {
-    println!("Changing mode of file");
+    println!("Changing mod of file {} to {:o}", pathname, r#mod);
 
     if r#mod > 0o7777 {
         eprintln!("Error: invalid mode {}", r#mod);
@@ -180,6 +180,7 @@ fn chmod(pathname: &str, r#mod: u32) -> RpcResult<()> {
 }
 
 fn unlink(pathname: &str) -> RpcResult<()> {
+    println!("Removing file {}", pathname);
     std::fs::remove_file(pathname).map_err(|_| {
         eprintln!("Error unlinking file");
         RpcError::Unlink
