@@ -12,9 +12,7 @@ impl Exec for OperationReq {
                 OperationResp::Open(open(pathname, mode_str, file, mode))
             }
             OperationReq::Read(buffer_size) => OperationResp::Read(read(*buffer_size, file, mode)),
-            OperationReq::Write(buffer, size) => {
-                OperationResp::Write(write(buffer, size, file, mode))
-            }
+            OperationReq::Write(buffer) => OperationResp::Write(write(buffer, file, mode)),
             OperationReq::Lseek(seek_from) => OperationResp::Lseek(lseek(seek_from, file)),
             OperationReq::Chmod(pathname, r#mod) => {
                 OperationResp::Chmod(chmod(pathname, *r#mod as u32))
@@ -85,8 +83,8 @@ fn open(
         }
         _ => {
             eprintln!(r#"Error: invalid mode, valid modes: ["r", "r+", "w", "w+", "a", "a+"]"#);
-            return Err(RpcError::InvalidMode)
-        },
+            return Err(RpcError::InvalidMode);
+        }
     };
 
     if file.is_none() {
@@ -121,12 +119,7 @@ fn read(buffer_size: usize, file: &mut Option<File>, mode: &Option<Mode>) -> Rpc
     }
 }
 
-fn write(
-    buffer: &Vec<u8>,
-    &size: &usize,
-    file: &mut Option<File>,
-    mode: &Option<Mode>,
-) -> RpcResult<u64> {
+fn write(buffer: &Vec<u8>, file: &mut Option<File>, mode: &Option<Mode>) -> RpcResult<u64> {
     println!("Writing to file");
     if file.is_none() {
         eprintln!("Error: no file open");
@@ -136,14 +129,10 @@ fn write(
         eprintln!("Error: cannot write to read-only file");
         return Err(RpcError::InvalidMode);
     }
-    if size > buffer.len() {
-        eprintln!("Error: buffer size {} exceeds buffer length {}", size, buffer.len());
-        return Err(RpcError::InvalidBufferSize);
-    }
 
-    if let Ok(()) = file.as_mut().unwrap().write_all(&buffer[..size]) {
-        println!("Success writing {} bytes", size);
-        Ok(size as u64)
+    if let Ok(()) = file.as_mut().unwrap().write_all(buffer) {
+        println!("Success writing {} bytes", buffer.len());
+        Ok(buffer.len() as u64)
     } else {
         eprintln!("Error writing to file");
         Err(RpcError::Write)
@@ -161,7 +150,10 @@ fn lseek(seek_from: &SeekFrom, file: &mut Option<File>) -> RpcResult<u64> {
     file.as_mut()
         .unwrap()
         .seek(seek_from.to_std())
-        .map_err(|_| {eprintln!("Error seeking in file"); RpcError::Lseek})
+        .map_err(|_| {
+            eprintln!("Error seeking in file");
+            RpcError::Lseek
+        })
 }
 
 fn chmod(pathname: &str, r#mod: u32) -> RpcResult<()> {

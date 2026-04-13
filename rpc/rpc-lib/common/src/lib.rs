@@ -1,10 +1,12 @@
 use bincode::{Decode, Encode};
 
+pub const PACKET_SIZE: usize = 4096;
+
 #[derive(Encode, Decode)]
 pub enum OperationReq {
     Open(String, String),
     Read(usize),
-    Write(Vec<u8>, usize),
+    Write(Vec<u8>),
     Lseek(SeekFrom),
     Chmod(String, u16),
     Unlink(String),
@@ -13,7 +15,7 @@ pub enum OperationReq {
 
 pub type RpcResult<T> = Result<T, RpcError>;
 
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Clone)]
 pub enum OperationResp {
     Open(RpcResult<()>),
     Read(RpcResult<Vec<u8>>),
@@ -39,7 +41,7 @@ pub struct Response {
     pub operation: OperationResp,
 }
 
-#[derive(Encode, Decode, Debug)]
+#[derive(Encode, Decode, Debug, Clone)]
 pub enum RpcError {
     // FunctionErrors
     InvalidMode,

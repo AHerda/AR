@@ -1,7 +1,12 @@
 use bincode::config;
-use common::{OperationReq, OperationResp, Request, Response, RpcError, RpcResult, SeekFrom};
+use common::{
+    OperationReq, OperationResp, PACKET_SIZE, Request, Response, RpcError, RpcResult, SeekFrom,
+};
 use std::net::UdpSocket;
 use std::time::Duration;
+
+pub const MAX_WRITE_BUFFER: usize = PACKET_SIZE - (2 * 8 + 4 + 8);
+pub const MAX_READ_BUFFER: usize = PACKET_SIZE - (8 + 4 + 8);
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -99,12 +104,65 @@ impl RpcServer {
         }
     }
 
-    pub fn write(&mut self, data: Vec<u8>) -> Result<RpcResult<u64>, ClientError> {
-        let len = data.len();
-        match self.call(OperationReq::Write(data, len))? {
-            OperationResp::Write(res) => Ok(res),
-            _ => Ok(Err(RpcError::InvalidResponse)),
+    pub fn read2(&mut self, mut len: usize) -> Result<RpcResult<Vec<u8>>, ClientError> {
+        let mut res = Vec::with_capacity(len);
+        while len > 0 {
+            let bytes_to_read = std::cmp::min(len, MAX_READ_BUFFER);
+            len -= bytes_to_read;
+
+            match self.call(OperationReq::Read(len))? {
+                OperationResp::Read(Ok(buf)) => {
+                    res.extend_from_slice(&buf);
+                    if buf.len() != bytes_to_read {
+                        break;
+                    }
+                }
+                OperationResp::Read(Err(e)) => {
+                    if res.len() == 0 {
+                        return Ok(Err(e));
+                    } else {
+                        break;
+                    }
+                }
+                _ => {
+                    if res.len() == 0 {
+                        return Ok(Err(RpcError::InvalidResponse));
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
+        Ok(Ok(res))
+    }
+
+    pub fn write(&mut self, data: Vec<u8>) -> Result<RpcResult<u64>, ClientError> {
+        let mut sum = 0;
+        for chunk in data.chunks(MAX_WRITE_BUFFER) {
+            match self.call(OperationReq::Write(chunk.to_vec()))? {
+                OperationResp::Write(Ok(val)) => {
+                    sum += val;
+                    if val != chunk.len() as u64 {
+                        break;
+                    }
+                }
+                OperationResp::Write(Err(e)) => {
+                    if sum == 0 {
+                        return Ok(Err(e));
+                    } else {
+                        break;
+                    }
+                }
+                _ => {
+                    if sum == 0 {
+                        return Ok(Err(RpcError::InvalidResponse));
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(Ok(sum))
     }
 
     pub fn lseek(&mut self, pos: SeekFrom) -> Result<RpcResult<u64>, ClientError> {
