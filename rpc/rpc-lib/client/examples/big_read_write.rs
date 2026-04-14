@@ -1,5 +1,5 @@
 use client::RpcServer;
-use common::SeekFrom;
+use common::{PACKET_SIZE, SeekFrom};
 
 fn main() {
     let mut client = RpcServer::new("malinka.tailb2454f.ts.net:4444", 5000).unwrap();
@@ -11,10 +11,23 @@ fn main() {
     }
 
     // Write data
-    client.write(vec![b'a'; 4096 * 3]).ok();
+    match client.write(vec![b'a'; PACKET_SIZE * 3]) {
+        Ok(Ok(_)) => println!("Data written!"),
+        Ok(Err(e)) => println!("Failed to write: {:?}", e),
+        Err(e) => println!("Failed to write: {:?}", e),
+    };
 
     // Seek to start and read
     client.lseek(SeekFrom::Start(0)).ok();
-    let data = client.read(4096 * 3).unwrap();
-    println!("Read: {}", String::from_utf8(data.unwrap()).unwrap());
+    match client.read(PACKET_SIZE * 3) {
+        Ok(Ok(val)) => {
+            println!(
+                "Read: {}\nLen: {}",
+                String::from_utf8(val.clone()).unwrap(),
+                val.len()
+            )
+        }
+        Ok(Err(e)) => println!("Failed to read server: {:?}", e),
+        Err(e) => println!("Failed to read client: {:?}", e),
+    }
 }

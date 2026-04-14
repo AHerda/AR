@@ -5,8 +5,15 @@ use common::{
 use std::net::UdpSocket;
 use std::time::Duration;
 
+// 2 * 8 for auth_token (u64) and seq (u64)
+// 4 for OperationReq enum encoding
+// 8 for length of encoded vec
 pub const MAX_WRITE_BUFFER: usize = PACKET_SIZE - (2 * 8 + 4 + 8);
-pub const MAX_READ_BUFFER: usize = PACKET_SIZE - (8 + 4 + 8);
+// 8 for seq (u64)
+// 4 for OperationResp enum encoding
+// 4 for RcpResult enum encoding
+// 8 for length of encoded vec
+pub const MAX_READ_BUFFER: usize = PACKET_SIZE - (8 + 4 + 4 + 8);
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -51,10 +58,12 @@ impl RpcServer {
             operation,
         };
 
-        let config = config::standard();
+        let config = config::standard()
+            .with_big_endian()
+            .with_fixed_int_encoding();
         let encoded = bincode::encode_to_vec(&req, config).map_err(|_| ClientError::EncodeError)?;
 
-        let mut buf = [0u8; 4096];
+        let mut buf = [0u8; PACKET_SIZE * 2];
         let mut result: Result<OperationResp, ClientError> = Err(ClientError::UnknownError);
 
         // Simple retry logic: try up to 3 times if we timeout
@@ -75,14 +84,17 @@ impl RpcServer {
                         return Err(ClientError::InvlaidSeq);
                     }
                 }
-                Err(ref e)
+                Err(e)
                     if e.kind() == std::io::ErrorKind::WouldBlock
                         || e.kind() == std::io::ErrorKind::TimedOut =>
                 {
                     result = Err(ClientError::Timeout);
                     continue; // Retry
                 }
-                Err(_) => return Err(ClientError::UnknownError),
+                Err(e) => {
+                    eprintln!("Error: {:?}", e);
+                    return Err(ClientError::UnknownError);
+                }
             }
         }
         result
@@ -97,20 +109,13 @@ impl RpcServer {
         }
     }
 
-    pub fn read(&mut self, len: usize) -> Result<RpcResult<Vec<u8>>, ClientError> {
-        match self.call(OperationReq::Read(len))? {
-            OperationResp::Read(res) => Ok(res),
-            _ => Ok(Err(RpcError::InvalidResponse)),
-        }
-    }
-
-    pub fn read2(&mut self, mut len: usize) -> Result<RpcResult<Vec<u8>>, ClientError> {
+    pub fn read(&mut self, mut len: usize) -> Result<RpcResult<Vec<u8>>, ClientError> {
         let mut res = Vec::with_capacity(len);
         while len > 0 {
             let bytes_to_read = std::cmp::min(len, MAX_READ_BUFFER);
             len -= bytes_to_read;
 
-            match self.call(OperationReq::Read(len))? {
+            match self.call(OperationReq::Read(bytes_to_read))? {
                 OperationResp::Read(Ok(buf)) => {
                     res.extend_from_slice(&buf);
                     if buf.len() != bytes_to_read {
@@ -153,7 +158,8 @@ impl RpcServer {
                         break;
                     }
                 }
-                _ => {
+                x => {
+                    println!("Unexpected response: {:?}", x);
                     if sum == 0 {
                         return Ok(Err(RpcError::InvalidResponse));
                     } else {

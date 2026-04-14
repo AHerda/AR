@@ -1,13 +1,13 @@
 use std::{fs::File, net::UdpSocket};
 
 use bincode::config;
-use common::{OperationResp, Request, Response, RpcError};
+use common::{OperationResp, PACKET_SIZE, Request, Response, RpcError};
 
 mod impls;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let socket = UdpSocket::bind("0.0.0.0:4444").unwrap();
-    let mut buf = [0u8; 4096];
+    let mut buf = [0u8; PACKET_SIZE];
 
     let mut last_call_cache: Option<(u64, OperationResp)> = None;
 
@@ -45,7 +45,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         operation_res
                     }
                 }
-                Err(_) => OperationResp::JustErrors(Err(RpcError::DecodeError)),
+                Err(e) => {
+                    eprintln!("Error: failed to decode the data with error: {:?}", e);
+                    OperationResp::JustErrors(Err(RpcError::DecodeError))
+                }
             };
 
         let resp = Response {

@@ -6,7 +6,8 @@ fn main() {
 
     // Open a file
     match client.open("test.txt".to_string(), "w+".to_string()) {
-        Ok(_) => println!("File opened!"),
+        Ok(Ok(_x)) => println!("File opened!"),
+        Ok(Err(e)) => println!("Failed to open: {:?}", e),
         Err(e) => println!("Failed to open: {:?}", e),
     }
 

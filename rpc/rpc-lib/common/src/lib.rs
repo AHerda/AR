@@ -15,7 +15,7 @@ pub enum OperationReq {
 
 pub type RpcResult<T> = Result<T, RpcError>;
 
-#[derive(Encode, Decode, Clone)]
+#[derive(Encode, Decode, Clone, Debug)]
 pub enum OperationResp {
     Open(RpcResult<()>),
     Read(RpcResult<Vec<u8>>),
@@ -35,7 +35,7 @@ pub struct Request {
 }
 
 /// Valid seq start at 1, if seq is 0 that means an error occured during decoding request
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Debug)]
 pub struct Response {
     pub seq: u64,
     pub operation: OperationResp,
