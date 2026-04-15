@@ -14,20 +14,20 @@ enum MessageType {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-struct Message {
+struct MessageSync {
     time: u64,
     sender: NodeId,
     receiver: NodeId,
     message: MessageType,
 }
 
-impl Ord for Message {
+impl Ord for MessageSync {
     fn cmp(&self, other: &Self) -> Ordering {
         other.time.cmp(&self.time)
     }
 }
 
-impl PartialOrd for Message {
+impl PartialOrd for MessageSync {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -54,7 +54,7 @@ struct Node {
     id: NodeId,
     neighbors: Vec<NodeId>,
     state: NodeState,
-    incoming_messages: BinaryHeap<Message>,
+    incoming_messages: BinaryHeap<MessageSync>,
 }
 
 impl Node {
@@ -75,11 +75,11 @@ impl Node {
         self.neighbors.extend(neighbors);
     }
 
-    fn receive_message(&mut self, sender: NodeId, msg: Message) {
+    fn receive_message(&mut self, sender: NodeId, msg: MessageSync) {
         self.incoming_messages.push(msg);
     }
 
-    fn process_messages(&mut self) -> Vec<(NodeId, Message)> {
+    fn process_messages(&mut self) -> Vec<(NodeId, MessageSync)> {
         let mut outgoing = Vec::new();
 
         for (sender, _msg) in &self.incoming_messages {
@@ -155,7 +155,7 @@ impl SyncSimulator {
             node.state.level = Some(0);
         }
 
-        let mut current_messages = vec![(start, start, Message::Flood)];
+        let mut current_messages = vec![(start, start, MessageSync::Flood)];
 
         while !current_messages.is_empty() && !self.graph.all_visited() {
             self.rounds += 1;
@@ -222,7 +222,7 @@ impl AsyncSimulator {
                     time: 1,
                     sender: start,
                     receiver: neighbor,
-                    message: Message::Flood,
+                    message: MessageSync::Flood,
                 });
             }
         }
@@ -241,7 +241,7 @@ impl AsyncSimulator {
                                 time: event.time + 1,
                                 sender: event.receiver,
                                 receiver: neighbor,
-                                message: Message::Flood,
+                                message: MessageSync::Flood,
                             });
                             self.message_count += 1;
                         }

@@ -1,15 +1,17 @@
 use std::collections::BinaryHeap;
 
+use crate::utilities::message::Message;
+
 use super::{
     NodeId,
-    message::{Message, MessageType},
+    message::{MessageSync, MessageType},
 };
 
 #[derive(Clone, Debug)]
-struct NodeState {
-    visited: bool,
-    parent: Option<NodeId>,
-    level: Option<u32>,
+pub struct NodeState {
+    pub visited: bool,
+    pub parent: Option<NodeId>,
+    pub level: Option<usize>,
 }
 
 impl Default for NodeState {
@@ -22,14 +24,15 @@ impl Default for NodeState {
     }
 }
 
-pub struct Node {
+#[derive(Clone, Debug)]
+pub struct Node<T: Message> {
     pub id: NodeId,
     pub neighbors: Vec<NodeId>,
-    state: NodeState,
-    incoming_messages: BinaryHeap<Message>,
+    pub state: NodeState,
+    incoming_messages: BinaryHeap<T>,
 }
 
-impl Node {
+impl<T: Message> Node<T> {
     pub fn new(id: NodeId) -> Self {
         Node {
             id,
@@ -37,6 +40,15 @@ impl Node {
             state: NodeState::default(),
             incoming_messages: BinaryHeap::new(),
         }
+    }
+
+    pub fn get_bfs_data(&self) -> (NodeId, usize) {
+        (
+            self.state.parent.unwrap_or(404),
+            self.state
+                .level
+                .expect("everyone should have a level (maybe not fully connected graph)"),
+        )
     }
 
     pub fn add_neighbor(&mut self, neighbor: NodeId) {
@@ -47,35 +59,33 @@ impl Node {
         self.neighbors.extend(neighbors);
     }
 
-    pub fn receive_message(&mut self, sender: NodeId, msg: Message) {
+    pub fn receive_message(&mut self, msg: T) {
         self.incoming_messages.push(msg);
     }
 
-    fn process_messages_round(&mut self, time: usize) -> Vec<Message> {
+    pub fn process_messages_round(&mut self) -> Vec<T> {
         let mut outgoing = Vec::new();
 
         if self.state.visited {
             return outgoing;
         }
 
-        while self
-            .incoming_messages
-            .peek()
-            .map_or(false, |m| m.time == time)
-        {
-            let msg = self.incoming_messages.pop().unwrap();
-            if
+        if !self.incoming_messages.is_empty() {
+            let mut msg = self.incoming_messages.pop().unwrap();
             self.state.visited = true;
-            self.state.parent = Some(msg.sender);
+            self.state.parent = msg.get_sender();
+            self.state.level = Some(msg.get_level());
+
+            msg = msg.to_next_level();
 
             for &neighbor in &self.neighbors {
                 if neighbor != self.state.parent.unwrap_or(NodeId::MAX) {
-                    outgoing.push(Message::new(time + 1, self.id, neighbor, msg.message_type));
+                    msg = msg.next_in_level(neighbor);
+                    outgoing.push(msg.clone());
                 }
             }
         }
 
-        self.incoming_messages.;
         outgoing
     }
 }

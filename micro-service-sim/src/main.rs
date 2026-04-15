@@ -1,57 +1,34 @@
 mod utilities;
 
-use utilities::{AsyncSimulator, Graph, SyncSimulator};
+use utilities::graph::Graph;
 
-fn build_graph_1() -> Graph {
-    let mut g = Graph::new();
-    g.add_node(0, vec![1, 2]);
-    g.add_node(1, vec![0, 3]);
-    g.add_node(2, vec![0, 3]);
-    g.add_node(3, vec![1, 2]);
-    g
-}
-
-fn build_graph_2() -> Graph {
-    let mut g = Graph::new();
-    g.add_node(0, vec![1, 2, 3]);
-    g.add_node(1, vec![0, 4]);
-    g.add_node(2, vec![0, 4, 5]);
-    g.add_node(3, vec![0]);
-    g.add_node(4, vec![1, 2, 5]);
-    g.add_node(5, vec![2, 4]);
-    g
-}
-
-fn build_graph_3() -> Graph {
-    let mut g = Graph::new();
-    g.add_node(0, vec![1]);
-    g.add_node(1, vec![0, 2, 3]);
-    g.add_node(2, vec![1, 4]);
-    g.add_node(3, vec![1, 5]);
-    g.add_node(4, vec![2, 5]);
-    g.add_node(5, vec![3, 4]);
-    g
-}
+use crate::utilities::message::{MessageAsync, MessageSync};
 
 fn main() {
-    println!("Graph 1:");
-    let mut sim = SyncSimulator::new(build_graph_1());
-    sim.run(0);
-    sim.report();
+    // let graph = Graph::<MessageSync>::new(100);
+    // println!("{}", graph);
 
-    println!("\nGraph 2:");
-    let mut sim = SyncSimulator::new(build_graph_2());
-    sim.run(0);
-    sim.report();
+    // zad1
+    // let (time, msgs) = utilities::sims::sync_flood_sim(graph.clone());
+    // println!("Time: {}, Messages: {}", time, msgs);
 
-    println!("\nGraph 3:");
-    let mut sim = SyncSimulator::new(build_graph_3());
-    sim.run(0);
-    sim.report();
+    // zad2
+    // let values = utilities::sims::sync_bfs_sim(graph.clone());
+    // println!("{:10}|{:10}|{:10}", "node", "parent_id", "level");
+    // for (i, value) in values.into_iter().enumerate() {
+    //     println!("{:^10}|{:^10}|{:^10}", i, value.0, value.1);
+    // }
 
-    println!("\n\nAsynchronous mode:");
-    println!("Graph 1:");
-    let mut sim = AsyncSimulator::new(build_graph_1());
-    sim.run(0);
-    sim.report();
+    let graph = Graph::<MessageAsync>::new(100);
+    // println!("{}", graph);
+
+    // zad3
+    // let (time, msgs) = utilities::sims::async_flood_sim(graph.clone());
+    // println!("Time: {}, Messages: {}", time, msgs);
+
+    let values = utilities::sims::async_bfs_sim(graph.clone());
+    println!("{:10}|{:10}|{:10}", "node", "parent_id", "level");
+    for (i, value) in values.into_iter().enumerate() {
+        println!("{:^10}|{:^10}|{:^10}", i, value.0, value.1);
+    }
 }
