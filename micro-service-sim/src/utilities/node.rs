@@ -30,6 +30,7 @@ pub struct Node<T: Message> {
     pub neighbors: Vec<NodeId>,
     pub state: NodeState,
     incoming_messages: BinaryHeap<T>,
+    time_of_last_sent_msg: T::Time,
 }
 
 impl<T: Message> Node<T> {
@@ -39,6 +40,7 @@ impl<T: Message> Node<T> {
             neighbors: Vec::new(),
             state: NodeState::default(),
             incoming_messages: BinaryHeap::new(),
+            time_of_last_sent_msg: T::TimeZero,
         }
     }
 
@@ -59,6 +61,10 @@ impl<T: Message> Node<T> {
         self.neighbors.extend(neighbors);
     }
 
+    pub fn get_neighbors(&self) -> Vec<NodeId> {
+        self.neighbors.clone()
+    }
+
     pub fn receive_message(&mut self, msg: T) {
         self.incoming_messages.push(msg);
     }
@@ -76,7 +82,7 @@ impl<T: Message> Node<T> {
             self.state.parent = msg.get_sender();
             self.state.level = Some(msg.get_level());
 
-            msg = msg.to_next_level();
+            msg = msg.to_next_level(self.time_of_last_sent_msg.clone());
 
             for &neighbor in &self.neighbors {
                 if neighbor != self.state.parent.unwrap_or(NodeId::MAX) {
@@ -84,6 +90,10 @@ impl<T: Message> Node<T> {
                     outgoing.push(msg.clone());
                 }
             }
+        }
+
+        if !outgoing.is_empty() {
+            self.time_of_last_sent_msg = outgoing.last().unwrap().get_time();
         }
 
         outgoing

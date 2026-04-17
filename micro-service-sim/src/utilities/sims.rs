@@ -1,4 +1,4 @@
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, VecDeque};
 
 use crate::utilities::NodeId;
 
@@ -89,4 +89,27 @@ pub fn async_bfs_sim(mut graph: Graph<MessageAsync>) -> Vec<(NodeId, usize)> {
     }
 
     graph.get_bfs_data()
+}
+
+pub fn get_bfs_tree_levels(neighbors_list: Vec<Vec<NodeId>>) -> Vec<usize> {
+    let mut levels = vec![None; neighbors_list.len()];
+    let mut queue = VecDeque::new();
+
+    levels[0] = Some(0);
+    queue.push_back(0);
+
+    while let Some(node) = queue.pop_front() {
+        let level = levels[node].unwrap();
+        for &neighbor in &neighbors_list[node] {
+            if levels[neighbor].is_none() {
+                levels[neighbor] = Some(level + 1);
+                queue.push_back(neighbor);
+            }
+        }
+    }
+
+    levels
+        .iter()
+        .map(|lvl| lvl.expect("graph not connected"))
+        .collect()
 }

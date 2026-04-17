@@ -48,6 +48,13 @@ impl<T: Message> Graph<T> {
         g
     }
 
+    pub fn get_neighbors_list(&self) -> Vec<Vec<NodeId>> {
+        self.nodes
+            .iter()
+            .map(|node| node.get_neighbors().clone())
+            .collect()
+    }
+
     pub fn size(&self) -> usize {
         self.nodes.len()
     }

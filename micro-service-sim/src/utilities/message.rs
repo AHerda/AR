@@ -1,4 +1,4 @@
-use rand_distr::{Distribution, Poisson};
+use rand_distr::{Distribution, Exp};
 
 use std::cmp::Ordering;
 
@@ -11,10 +11,10 @@ pub enum MessageType {
 }
 
 pub trait Message: Ord + Clone {
-    type Time;
+    type Time: Clone + std::fmt::Debug;
     const TimeZero: Self::Time;
 
-    fn to_next_level(&self) -> Self;
+    fn to_next_level(&self, last_send_msg_time: Self::Time) -> Self;
     fn next_in_level(&self, receiver: NodeId) -> Self;
 
     fn new(
@@ -27,6 +27,7 @@ pub trait Message: Ord + Clone {
     fn get_sender(&self) -> Option<NodeId>;
     fn get_receiver(&self) -> NodeId;
     fn get_level(&self) -> usize;
+    fn get_time(&self) -> Self::Time;
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -73,7 +74,7 @@ impl Message for MessageSync {
         }
     }
 
-    fn to_next_level(&self) -> Self {
+    fn to_next_level(&self, _: Self::Time) -> Self {
         Self {
             time: self.time + 1,
             sender: Some(self.receiver),
@@ -103,6 +104,10 @@ impl Message for MessageSync {
 
     fn get_level(&self) -> usize {
         self.level
+    }
+
+    fn get_time(&self) -> Self::Time {
+        self.time
     }
 }
 
@@ -155,9 +160,9 @@ impl Message for MessageAsync {
         }
     }
 
-    fn to_next_level(&self) -> Self {
+    fn to_next_level(&self, last_send_msg_time: Self::Time) -> Self {
         Self {
-            time: self.time,
+            time: Self::Time::max(last_send_msg_time, self.time),
             sender: Some(self.receiver),
             level: self.level + 1,
             receiver: self.receiver,
@@ -166,7 +171,7 @@ impl Message for MessageAsync {
     }
 
     fn next_in_level(&self, receiver: NodeId) -> Self {
-        let poi = rand_distr::Poisson::new(LAMBDA).unwrap();
+        let poi = rand_distr::Exp::new(LAMBDA).unwrap();
         Self {
             time: self.time + poi.sample(&mut rand::rng()),
             sender: self.sender,
@@ -186,5 +191,9 @@ impl Message for MessageAsync {
 
     fn get_level(&self) -> usize {
         self.level
+    }
+
+    fn get_time(&self) -> Self::Time {
+        self.time
     }
 }
