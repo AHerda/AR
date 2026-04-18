@@ -8,6 +8,7 @@ use super::{LAMBDA, NodeId};
 pub enum MessageType {
     Flood,
     Bfs,
+    Ack,
 }
 
 pub trait Message: Ord + Clone {
@@ -16,6 +17,8 @@ pub trait Message: Ord + Clone {
 
     fn to_next_level(&self, last_send_msg_time: Self::Time) -> Self;
     fn next_in_level(&self, receiver: NodeId) -> Self;
+    fn create_ack(&self, last_send_msg_time: Self::Time, receiver: NodeId) -> Self;
+    fn is_ack(&self) -> bool;
 
     fn new(
         time: Self::Time,
@@ -42,7 +45,7 @@ pub struct MessageSync {
 impl Ord for MessageSync {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.message_type {
-            MessageType::Flood => other.time.cmp(&self.time),
+            MessageType::Flood | MessageType::Ack => other.time.cmp(&self.time),
             MessageType::Bfs => other.level.cmp(&self.level),
         }
     }
@@ -92,6 +95,20 @@ impl Message for MessageSync {
             receiver,
             message_type: self.message_type,
         }
+    }
+
+    fn create_ack(&self, _: Self::Time, receiver: NodeId) -> Self {
+        Self {
+            time: self.time + 1,
+            sender: Some(self.receiver),
+            level: self.level,
+            receiver,
+            message_type: MessageType::Ack,
+        }
+    }
+
+    fn is_ack(&self) -> bool {
+        self.message_type == MessageType::Ack
     }
 
     fn get_sender(&self) -> Option<NodeId> {
@@ -179,6 +196,21 @@ impl Message for MessageAsync {
             receiver,
             message_type: self.message_type,
         }
+    }
+
+    fn create_ack(&self, last_send_msg_time: Self::Time, receiver: NodeId) -> Self {
+        let poi = rand_distr::Exp::new(LAMBDA).unwrap();
+        Self {
+            time: Self::Time::max(last_send_msg_time, self.time) + poi.sample(&mut rand::rng()),
+            sender: Some(self.receiver),
+            level: self.level,
+            receiver,
+            message_type: MessageType::Ack,
+        }
+    }
+
+    fn is_ack(&self) -> bool {
+        self.message_type == MessageType::Ack
     }
 
     fn get_sender(&self) -> Option<NodeId> {

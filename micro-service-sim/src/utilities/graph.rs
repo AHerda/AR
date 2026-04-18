@@ -1,5 +1,5 @@
-use rand::RngExt;
-use std::fmt::Display;
+use rand::{RngExt, seq::IndexedRandom};
+use std::{collections::VecDeque, fmt::Display};
 
 use super::{
     NodeId, P,
@@ -44,8 +44,52 @@ impl<T: Message> Graph<T> {
             }
         }
 
+        let mut bfs_levels = g.try_get_bfs_tree_levels();
+        while bfs_levels.iter().any(|node| node.is_none()) {
+            let (connected, not_connected): (Vec<_>, Vec<_>) =
+                bfs_levels.iter().enumerate().partition(|n| n.1.is_some());
+
+            let to_connect_1 = connected.choose(&mut rng).unwrap().0;
+            let to_connect_2 = not_connected.choose(&mut rng).unwrap().0;
+            g.nodes[to_connect_1].add_neighbor(to_connect_2);
+            g.nodes[to_connect_2].add_neighbor(to_connect_1);
+            bfs_levels = g.try_get_bfs_tree_levels();
+        }
+
         println!("all should be connected");
         g
+    }
+
+    fn try_get_bfs_tree_levels(&self) -> Vec<Option<usize>> {
+        let neighbors_list = self.get_neighbors_list();
+        let mut levels = vec![None; neighbors_list.len()];
+        let mut queue = VecDeque::new();
+
+        levels[0] = Some(0);
+        queue.push_back(0);
+
+        while let Some(node) = queue.pop_front() {
+            let level = levels[node].unwrap();
+            for &neighbor in &neighbors_list[node] {
+                if levels[neighbor].is_none() {
+                    levels[neighbor] = Some(level + 1);
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+
+        levels
+    }
+
+    pub fn get_bfs_tree_levels(&self) -> Vec<usize> {
+        self.try_get_bfs_tree_levels()
+            .iter()
+            .map(|n| n.unwrap())
+            .collect()
+    }
+
+    pub fn root(&self) -> &Node<T> {
+        &self.nodes[0]
     }
 
     pub fn get_neighbors_list(&self) -> Vec<Vec<NodeId>> {
